@@ -2,7 +2,6 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 FUEL_PRICE_PER_KM = 0.15
 
 FORBIDDEN_VERTICES_RATIO = 0.05
