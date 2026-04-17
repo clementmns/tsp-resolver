@@ -89,3 +89,36 @@ def display_graph(graph: nx.Graph) -> None:
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=7)
 
     plt.axis("off")
+
+def display_path(graph: nx.Graph, path: list[int]) -> None:
+    """Display the graph and overlay a path through the given node sequence."""
+    precedences_edges = [(u, precedence) for u, precedence in graph.nodes(data='precedence') if precedence is not None]
+    normal = []
+    forbidden = []
+
+    for (u, v) in graph.edges():
+        forbidden.append((u, v)) if (graph.edges[u, v]['weight'] == -1) else normal.append((u, v))
+
+    path_edges = [
+        (path[i], path[i + 1])
+        for i in range(len(path) - 1)
+        if graph.has_edge(path[i], path[i + 1]) and graph.edges[path[i], path[i + 1]]['weight'] != -1
+    ]
+
+    edge_labels = {
+        (u, v): f"{graph.edges[u, v]['weight']:.2f}"
+        for (u, v) in normal
+    }
+
+    plt.figure(figsize=(10, 10))
+
+    pos = nx.circular_layout(graph)
+    nx.draw_networkx_nodes(graph, pos, node_size=500)
+    nx.draw_networkx_labels(graph, pos)
+    nx.draw_networkx_edges(graph, pos, edgelist=normal, edge_color="b", alpha=0.5)
+    nx.draw_networkx_edges(graph, pos, edgelist=forbidden, edge_color="r", alpha=0.5, style="dashed", width=1.5)
+    nx.draw_networkx_edges(graph, pos, edgelist=precedences_edges, edge_color="g", alpha=1, connectionstyle="arc3,rad=0.3", arrows=True, arrowstyle='->', width=2)
+    nx.draw_networkx_edges(graph, pos, edgelist=path_edges, edge_color="magenta", alpha=1, connectionstyle="arc3,rad=0.2", arrows=True, arrowstyle='->', width=2)
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=7)
+
+    plt.axis("off")
