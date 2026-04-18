@@ -13,7 +13,10 @@ def calculate_tour_cost(graph: nx.Graph, tour: list) -> float:
         u = tour[i]
         v = tour[(i + 1) % len(tour)] 
         
-        weight = graph.edges[u, v].get('weight', -1)
+        if graph.has_edge(u, v):
+            weight = graph.edges[u, v].get('weight', -1)
+        else:
+            weight = -1
         
         if weight == -1:
             cost += PENALTY
@@ -23,9 +26,12 @@ def calculate_tour_cost(graph: nx.Graph, tour: list) -> float:
     for i, node in enumerate(tour):
         prec_node = graph.nodes[node].get('precedence')
         if prec_node is not None:
-            prec_index = tour.index(prec_node)
-            if prec_index > i:
+            if prec_node not in tour:
                 cost += PENALTY
+            else:
+                prec_index = tour.index(prec_node)
+                if prec_index > i:
+                    cost += PENALTY
                 
     return cost
 
@@ -84,5 +90,8 @@ def multi_start_hill_climbing(graph: nx.Graph, iterations: int = 50) -> tuple:
         if final_cost < global_best_cost:
             global_best_cost = final_cost
             global_best_tour = final_tour
+    
+    if global_best_tour is None:
+        return [], float('inf')
             
     return global_best_tour, global_best_cost
