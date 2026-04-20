@@ -4,8 +4,7 @@ import numpy as np
 from graph_generator import generate_graph
 
 
-PENALTY = 1_000_000
-
+PENALTY: int = 1000000
 
 def _node_can_be_visited(graph: nx.Graph, node: int, visited: set[int]) -> bool:
     """Check if a node can be visited based on its precedence constraint."""
@@ -22,8 +21,7 @@ def _valid_next_nodes(graph: nx.Graph, current: int, visited: set[int]) -> list[
         and graph.edges[current, node]['weight'] != -1
     ]
 
-
-def calculate_tour_cost(graph: nx.Graph, tour: list[int]) -> float:
+def _calculate_tour_cost(graph: nx.Graph, tour: list[int]) -> float:
     """
     Calculate the total cost of a closed tour.
     Applies a heavy penalty for violated constraints (forbidden edges or precedence).
@@ -45,8 +43,7 @@ def calculate_tour_cost(graph: nx.Graph, tour: list[int]) -> float:
 
     return cost
 
-
-def nearest_neighbor_tour(graph: nx.Graph, start: int) -> tuple[list[int], float]:
+def _nearest_neighbor_tour(graph: nx.Graph, start: int) -> tuple[list[int], float]:
     """
     Build a tour using the nearest neighbour heuristic from a given start node.
     At each step the closest unvisited reachable node (lowest edge weight) is chosen.
@@ -63,7 +60,7 @@ def nearest_neighbor_tour(graph: nx.Graph, start: int) -> tuple[list[int], float
         candidates = _valid_next_nodes(graph, current, visited)
 
         if candidates:
-            # Pick the nearest (cheapest) valid neighbour
+            # Pick the nearest cheapest valid neighbour
             next_node = min(candidates, key=lambda n: graph.edges[current, n]['weight'])
         else:
             # Fallback: any unvisited node that satisfies precedence (ignoring forbidden edges)
@@ -81,9 +78,8 @@ def nearest_neighbor_tour(graph: nx.Graph, start: int) -> tuple[list[int], float
         tour.append(next_node)
         visited.add(next_node)
 
-    cost = calculate_tour_cost(graph, tour)
+    cost = _calculate_tour_cost(graph, tour)
     return tour + [tour[0]], cost
-
 
 def resolve_by_nearest_neighbor(graph: nx.Graph, multi_start: bool = True,) -> tuple[list[int], float]:
     """
@@ -109,7 +105,7 @@ def resolve_by_nearest_neighbor(graph: nx.Graph, multi_start: bool = True,) -> t
     best_cost = float('inf')
 
     for start in starts:
-        tour, cost = nearest_neighbor_tour(graph, start)
+        tour, cost = _nearest_neighbor_tour(graph, start)
         if cost < best_cost:
             best_cost = cost
             best_tour = tour
