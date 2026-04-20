@@ -1,4 +1,3 @@
-# tabu search with 2-opt optimization
 import networkx as nx
 import numpy as np
 
@@ -83,7 +82,7 @@ def resolve_by_tabu_search_with_2opt(graph: nx.Graph, n_iterations: int = 500, t
         return nodes + nodes[:1], 0.0
 
     # check params
-    if tabu_tenure is None: # nombre d'itérations ou un mouvement reste interdit
+    if tabu_tenure is None: # number of iterations during which a move remains tabu
         tabu_tenure = max(7, node_count // 5)
     if neighborhood_size is None:
         neighborhood_size = min(node_count * (node_count - 1) // 2, 200)
@@ -96,16 +95,16 @@ def resolve_by_tabu_search_with_2opt(graph: nx.Graph, n_iterations: int = 500, t
     best_tour = current_tour[:]
     best_cost = current_cost
 
-    # Each entry is a frozenset({i, j}) representing the swapped edge pair.
+    # each entry is a frozenset({i, j}) representing the swapped edge pair.
     tabu_list: dict[frozenset, int] = {}
 
     for iteration in range(n_iterations):
 
-        # Generate neighborhood: all 2-opt swaps (i, j) with i < j
+        # generate neighborhood: all 2-opt swaps (i, j) with i < j
         n = len(current_tour)
         all_moves = [(i, j) for i in range(n - 1) for j in range(i + 2, n)]
 
-        # Randomly sample if neighborhood is too large
+        # randomly sample if neighborhood is too large
         if len(all_moves) > neighborhood_size:
             all_moves = [
                 all_moves[k]
@@ -130,21 +129,21 @@ def resolve_by_tabu_search_with_2opt(graph: nx.Graph, n_iterations: int = 500, t
 
             is_tabu = tabu_list.get(move_key, 0) > iteration
 
-            # Accept move if: not tabu, OR aspiration criterion (beats global best)
+            # accept move if: not tabu, OR aspiration criterion (beats global best)
             if (not is_tabu or cost < best_cost) and cost < best_candidate_cost:
                 best_candidate = candidate
                 best_candidate_cost = cost
                 best_move = (i, j)
 
         if best_candidate is None:
-            # All neighbors are tabu and none satisfies aspiration → skip
+            # all neighbors are tabu and none satisfies aspiration → skip
             continue
 
-        # Move to best candidate
+        # move to best candidate
         current_tour = best_candidate
         current_cost = best_candidate_cost
 
-        # Register the move as tabu
+        # register the move as tabu
         if best_move is not None:
             i, j = best_move
             n = len(current_tour)
@@ -161,5 +160,5 @@ def resolve_by_tabu_search_with_2opt(graph: nx.Graph, n_iterations: int = 500, t
     if not best_tour:
         return [], float('inf')
 
-    # Return a closed tour
+    # return a closed tour
     return best_tour + [best_tour[0]], best_cost
