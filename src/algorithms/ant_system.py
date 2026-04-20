@@ -1,21 +1,7 @@
 import networkx as nx
 import numpy as np
 
-from graph_generator import generate_graph
-
-def _node_can_be_visited(graph: nx.Graph, node: int, visited: set[int]) -> bool:
-    """Check if a node can be visited based on its precedence constraint."""
-    precedence = graph.nodes[node].get('precedence')
-    return precedence is None or precedence in visited
-
-def _valid_next_nodes(graph: nx.Graph, current: int, visited: set[int]) -> list[int]:
-    """Get a list of valid next nodes that can be visited from the current node, based on the graph's edges, weights, and precedence constraints."""
-    return [
-        node for node in graph.nodes()
-        if node not in visited
-        and _node_can_be_visited(graph, node, visited)
-        and graph.edges[current, node]['weight'] != -1
-    ]
+from ..helper import *
 
 def resolve_by_ant_system(
     graph: nx.Graph,
@@ -52,7 +38,7 @@ def resolve_by_ant_system(
 
             while len(tour) < node_count:
                 current = tour[-1]
-                neighbors = _valid_next_nodes(graph, current, visited)
+                neighbors = valid_next_nodes(graph, current, visited)
                 if not neighbors:
                     break
 

@@ -1,39 +1,7 @@
 import random
 import networkx as nx
 
-def _calculate_tour_cost(graph: nx.Graph, tour: list) -> float:
-    """
-    Calculates the total cost of a tour.
-    Applies heavy penalties if constraints are not respected.
-    """
-    cost = 0
-    PENALTY = 1000000 # Strong penalty for violated constraints
-
-    for i in range(len(tour)):
-        u = tour[i]
-        v = tour[(i + 1) % len(tour)]
-
-        if graph.has_edge(u, v):
-            weight = graph.edges[u, v].get('weight', -1)
-        else:
-            weight = -1
-
-        if weight == -1:
-            cost += PENALTY
-        else:
-            cost += weight
-
-    for i, node in enumerate(tour):
-        prec_node = graph.nodes[node].get('precedence')
-        if prec_node is not None:
-            if prec_node not in tour:
-                cost += PENALTY
-            else:
-                prec_index = tour.index(prec_node)
-                if prec_index > i:
-                    cost += PENALTY
-
-    return cost
+from ..helper import *
 
 def _generate_random_tour(nodes: list) -> list:
     """Generates an initial random solution (permutation of nodes)."""
@@ -42,6 +10,7 @@ def _generate_random_tour(nodes: list) -> list:
     rest_of_tour = tour[1:]
     random.shuffle(rest_of_tour)
     return [depot] + rest_of_tour
+
 
 def _get_neighbors(tour: list) -> list:
     """Generates the neighborhood using a simple 2-node swap."""
@@ -53,10 +22,11 @@ def _get_neighbors(tour: list) -> list:
             neighbors.append(neighbor)
     return neighbors
 
+
 def resolve_by_hill_climbing(graph: nx.Graph, initial_tour: list) -> tuple:
     """Executes a single hill climbing pass."""
     current_tour = initial_tour
-    current_cost = _calculate_tour_cost(graph, current_tour)
+    current_cost = calculate_tour_cost_with_penalty(graph, current_tour)
 
     while True:
         neighbors = _get_neighbors(current_tour)
@@ -64,7 +34,7 @@ def resolve_by_hill_climbing(graph: nx.Graph, initial_tour: list) -> tuple:
         best_neighbor_cost = current_cost
 
         for neighbor in neighbors:
-            cost = _calculate_tour_cost(graph, neighbor)
+            cost = calculate_tour_cost_with_penalty(graph, neighbor)
             if cost < best_neighbor_cost:
                 best_neighbor = neighbor
                 best_neighbor_cost = cost
@@ -77,11 +47,12 @@ def resolve_by_hill_climbing(graph: nx.Graph, initial_tour: list) -> tuple:
 
     return current_tour, current_cost
 
+
 def resolve_by_ms_hill_climbing(graph: nx.Graph, iterations: int = 50) -> tuple:
     """Runs the Hill Climbing algorithm multiple times from different starting points."""
     nodes = list(graph.nodes())
     global_best_tour = None
-    global_best_cost = float('inf')
+    global_best_cost = float("inf")
 
     for _ in range(iterations):
         initial_tour = _generate_random_tour(nodes)
@@ -91,8 +62,8 @@ def resolve_by_ms_hill_climbing(graph: nx.Graph, iterations: int = 50) -> tuple:
             global_best_cost = final_cost
             global_best_tour = final_tour
 
-    if global_best_tour is None or global_best_cost >= 1000000:
+    if global_best_tour is None or global_best_cost >= PENALTY_COST:
         print("No valid tour is possible with the current constraints.")
-        return [], float('inf')
+        return [], float("inf")
 
     return global_best_tour, global_best_cost

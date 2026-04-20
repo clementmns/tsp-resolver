@@ -3,6 +3,7 @@ import time
 import numpy as np
 import networkx as nx
 
+from ..helper import *
 
 def _tour_cost(graph: nx.Graph, tour: list[int]) -> float:
     total = 0.0
@@ -15,19 +16,14 @@ def _tour_cost(graph: nx.Graph, tour: list[int]) -> float:
 
 
 def _is_feasible(graph: nx.Graph, tour: list[int]) -> bool:
-    # Check forbidden edges
-    for u, v in zip(tour, tour[1:]):
-        if graph.edges[u, v]['weight'] == -1:
-            return False
+    if len(tour) < 2 or tour[0] != tour[-1]:
+        return False
 
-    # Check precedence constraints
-    position = {node: idx for idx, node in enumerate(tour[:-1])}
-    for node in tour[:-1]:
-        predecessor = graph.nodes[node].get('precedence')
-        if predecessor is not None and predecessor in position:
-            if position[predecessor] > position[node]:
-                return False
-    return True
+    open_tour = tour[:-1]
+    if len(set(open_tour)) != len(open_tour):
+        return False
+
+    return is_tour_feasible(graph, open_tour)
 
 
 def _two_opt_swap(tour: list[int], i: int, j: int) -> list[int]:
@@ -42,13 +38,7 @@ def _initial_tour(graph: nx.Graph, rng: np.random.Generator) -> list[int]:
     # Greedy nearest neighbor from node 0
     while len(tour) < n:
         current = tour[-1]
-        candidates = [
-            node for node in graph.nodes()
-            if node not in visited
-            and graph.edges[current, node]['weight'] != -1
-            and (graph.nodes[node].get('precedence') is None
-                 or graph.nodes[node]['precedence'] in visited)
-        ]
+        candidates = valid_next_nodes(graph, current, visited)
         if not candidates:
             break
         next_node = min(candidates, key=lambda v: graph.edges[current, v]['weight'])
