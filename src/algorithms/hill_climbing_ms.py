@@ -91,7 +91,8 @@ def resolve_by_ms_hill_climbing(graph: nx.Graph, iterations: int = 50) -> tuple:
             global_best_cost = final_cost
             global_best_tour = final_tour
 
-    if global_best_tour is None:
+    if global_best_tour is None or global_best_cost >= 1000000:
+        print("Aucune tournée valide n'est possible avec les contraintes actuelles")
         return [], float('inf')
 
     return global_best_tour, global_best_cost
