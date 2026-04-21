@@ -1,6 +1,45 @@
+import networkx as nx
 import numpy as np
 
-from ..helper import *
+
+PENALTY: int = 1000000
+
+def _node_can_be_visited(graph: nx.Graph, node: int, visited: set[int]) -> bool:
+    """Check if a node can be visited based on its precedence constraint."""
+    precedence = graph.nodes[node].get('precedence')
+    return precedence is None or precedence in visited
+
+
+def _valid_next_nodes(graph: nx.Graph, current: int, visited: set[int]) -> list[int]:
+    """Get a list of valid next nodes from current, respecting forbidden edges and precedence constraints."""
+    return [
+        node for node in graph.nodes()
+        if node not in visited
+        and _node_can_be_visited(graph, node, visited)
+        and graph.edges[current, node]['weight'] != -1
+    ]
+
+def _calculate_tour_cost(graph: nx.Graph, tour: list[int]) -> float:
+    """
+    Calculate the total cost of a closed tour.
+    Applies a heavy penalty for violated constraints (forbidden edges or precedence).
+    """
+    cost = 0.0
+
+    for i in range(len(tour)):
+        u = tour[i]
+        v = tour[(i + 1) % len(tour)]
+        weight = graph.edges[u, v].get('weight', -1)
+        cost += PENALTY if weight == -1 else weight
+
+    for i, node in enumerate(tour):
+        prec_node = graph.nodes[node].get('precedence')
+        if prec_node is not None:
+            prec_index = tour.index(prec_node)
+            if prec_index > i:
+                cost += PENALTY
+
+    return cost
 
 def _nearest_neighbor_tour(graph: nx.Graph, start: int) -> tuple[list[int], float]:
     """
@@ -10,23 +49,22 @@ def _nearest_neighbor_tour(graph: nx.Graph, start: int) -> tuple[list[int], floa
     accumulating a penalty so the result remains comparable with other solvers.
     Returns the closed tour and its total cost.
     """
-    node_count: int = graph.number_of_nodes()
-    tour: list[int] = [start]
-    visited: set[int] = {start}
+    node_count = graph.number_of_nodes()
+    tour = [start]
+    visited = {start}
 
     while len(tour) < node_count:
-        current: int = tour[-1]
-        candidates: list[int] = valid_next_nodes(graph, current, visited)
+        current = tour[-1]
+        candidates = _valid_next_nodes(graph, current, visited)
 
         if candidates:
             # Pick the nearest cheapest valid neighbour
-            next_node = min(candidates, key=lambda n: graph.edges[current, n]["weight"])
+            next_node = min(candidates, key=lambda n: graph.edges[current, n]['weight'])
         else:
             # Fallback: any unvisited node that satisfies precedence (ignoring forbidden edges)
-            fallback: list[int] = [
-                n
-                for n in graph.nodes()
-                if n not in visited and node_can_be_visited(graph, n, visited)
+            fallback = [
+                n for n in graph.nodes()
+                if n not in visited and _node_can_be_visited(graph, n, visited)
             ]
             if not fallback:
                 # Last resort: any unvisited node
@@ -38,13 +76,13 @@ def _nearest_neighbor_tour(graph: nx.Graph, start: int) -> tuple[list[int], floa
         tour.append(next_node)
         visited.add(next_node)
 
-    cost: float = calculate_tour_cost_with_penalty(graph, tour)
+    cost = _calculate_tour_cost(graph, tour)
     return tour + [tour[0]], cost
 
-
 def resolve_by_nearest_neighbor(
-    graph: nx.Graph,
+    graph: nx.Graph, 
     multi_start: bool = True,
+    seed: int | None = None
 ) -> tuple[list[int], float]:
     """
     Resolve the TSP using the nearest neighbour heuristic.
@@ -53,28 +91,23 @@ def resolve_by_nearest_neighbor(
     node and the best closed tour is returned, which greatly reduces sensitivity
     to the arbitrary choice of starting point.
     When *multi_start* is False a single run is performed from a random node
-    that has no precedence constraint.
+    that has no precedence constraint. The random choice can be controlled via *seed*.
     """
-    node_count: int = graph.number_of_nodes()
+    node_count = graph.number_of_nodes()
     if node_count == 0:
         return [], 0.0
 
     if multi_start:
-        starts: list[int] = list(graph.nodes())
+        starts = list(graph.nodes())
     else:
-        free_starts: list[int] = [
-            n for n in graph.nodes() if graph.nodes[n].get("precedence") is None
-        ]
-        starts: list[int] = [
-            int(np.random.choice(free_starts if free_starts else list(graph.nodes())))
-        ]
+        rng = np.random.default_rng(seed)
+        free_starts = [n for n in graph.nodes() if graph.nodes[n].get('precedence') is None]
+        starts = [int(rng.choice(free_starts if free_starts else list(graph.nodes())))]
 
     best_tour: list[int] = []
-    best_cost: float = float("inf")
+    best_cost = float('inf')
 
     for start in starts:
-        tour: list[int]
-        cost: float
         tour, cost = _nearest_neighbor_tour(graph, start)
         if cost < best_cost:
             best_cost = cost
