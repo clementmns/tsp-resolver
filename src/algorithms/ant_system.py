@@ -1,7 +1,7 @@
-import networkx as nx
 import numpy as np
 
 from ..helper import *
+
 
 def resolve_by_ant_system(
     graph: nx.Graph,
@@ -13,47 +13,47 @@ def resolve_by_ant_system(
     initial_pheromone: float = 1.0,
 ) -> tuple[list[int], float]:
     """Resolve the graph using a simple ant colony optimization algorithm."""
-    node_count = graph.number_of_nodes()
+    node_count: int = graph.number_of_nodes()
     if node_count == 0:
         return [], 0.0
 
     if n_ants is None:
         n_ants = node_count
 
-    start_candidates = [node for node in graph.nodes() if graph.nodes[node].get('precedence') is None]
+    start_candidates: list[int] = [node for node in graph.nodes() if graph.nodes[node].get("precedence") is None]
     if not start_candidates:
         start_candidates = list(graph.nodes())
 
-    pheromones = np.full((node_count, node_count), initial_pheromone, dtype=float)
+    pheromones: np.ndarray = np.full((node_count, node_count), initial_pheromone, dtype=float)
     best_tour: list[int] = []
-    best_cost = float('inf')
+    best_cost: float = float("inf")
 
     for _ in range(n_iterations):
         iteration_solutions: list[tuple[list[int], float]] = []
 
         for _ in range(n_ants):
-            start = int(np.random.choice(start_candidates))
-            tour = [start]
-            visited = {start}
+            start: int = int(np.random.choice(start_candidates))
+            tour: list[int] = [start]
+            visited: set[int] = {start}
 
             while len(tour) < node_count:
-                current = tour[-1]
-                neighbors = valid_next_nodes(graph, current, visited)
+                current: int = tour[-1]
+                neighbors: list[int] = valid_next_nodes(graph, current, visited)
                 if not neighbors:
                     break
 
-                scores = []
+                scores: list[float] = []
                 for neighbor in neighbors:
-                    weight = graph.edges[current, neighbor]['weight']
-                    score = (pheromones[current, neighbor] ** alpha) * ((1.0 / weight) ** beta)
+                    weight: float = graph.edges[current, neighbor]["weight"]
+                    score: float = (pheromones[current, neighbor] ** alpha) * ((1.0 / weight) ** beta)
                     scores.append(score)
 
-                scores = np.array(scores, dtype=float)
-                if scores.sum() <= 0:
-                    next_node = int(np.random.choice(neighbors))
+                scores_array: np.ndarray = np.array(scores, dtype=float)
+                if scores_array.sum() <= 0:
+                    next_node: int = int(np.random.choice(neighbors))
                 else:
-                    probabilities = scores / scores.sum()
-                    next_node = int(np.random.choice(neighbors, p=probabilities))
+                    probabilities: np.ndarray = scores_array / scores_array.sum()
+                    next_node: int = int(np.random.choice(neighbors, p=probabilities))
 
                 tour.append(next_node)
                 visited.add(next_node)
@@ -61,10 +61,10 @@ def resolve_by_ant_system(
             if len(tour) != node_count:
                 continue
 
-            total_cost = 0.0
-            feasible = True
+            total_cost: float = 0.0
+            feasible: bool = True
             for u, v in zip(tour, tour[1:]):
-                weight = graph.edges[u, v]['weight']
+                weight: float = graph.edges[u, v]["weight"]
                 if weight == -1:
                     feasible = False
                     break
@@ -73,12 +73,12 @@ def resolve_by_ant_system(
             if not feasible:
                 continue
 
-            return_weight = graph.edges[tour[-1], tour[0]]['weight']
+            return_weight: float = graph.edges[tour[-1], tour[0]]["weight"]
             if return_weight == -1:
                 continue
 
             total_cost += return_weight
-            closed_tour = tour + [tour[0]]
+            closed_tour: list[int] = tour + [tour[0]]
 
             if total_cost < best_cost:
                 best_cost = total_cost
@@ -88,7 +88,7 @@ def resolve_by_ant_system(
 
         pheromones *= (1.0 - evaporation_rate)
         for tour, cost in iteration_solutions:
-            deposit = 1.0 / cost
+            deposit: float = 1.0 / cost
             for u, v in zip(tour, tour[1:]):
                 pheromones[u, v] += deposit
                 pheromones[v, u] += deposit
@@ -96,6 +96,6 @@ def resolve_by_ant_system(
             pheromones[tour[0], tour[-1]] += deposit
 
     if not best_tour:
-        return [], float('inf')
+        return [], float("inf")
 
     return best_tour, best_cost
