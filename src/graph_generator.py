@@ -2,23 +2,23 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 
-FUEL_PRICE_PER_KM = 0.15
+FUEL_PRICE_PER_KM: float = 0.15
 
-FORBIDDEN_VERTICES_RATIO = 0.05
+FORBIDDEN_VERTICES_RATIO: float = 0.05
 
-PRECEDENCE_NODES_RATIO = 0.15
+PRECEDENCE_NODES_RATIO: float = 0.15
 
-TOLL_RATIO = 0.2
-TOLL_MIN_COST = 5
-TOLL_MAX_COST = 30
+TOLL_RATIO: float = 0.2
+TOLL_MIN_COST: int = 5
+TOLL_MAX_COST: int = 30
 
 def compute_toll_cost(a: int, b: int) -> int:
     """Compute a random toll cost between a and b."""
-    return np.random.randint(a, b)
+    return int(np.random.randint(a, b))
 
 def compute_weight(distance: float) -> float:
     """Compute the weight of an edge based on distance, fuel price, and a random chance of having a toll."""
-    has_toll = np.random.rand() < TOLL_RATIO
+    has_toll: bool = np.random.rand() < TOLL_RATIO
     if has_toll:
         return compute_toll_cost(TOLL_MIN_COST, TOLL_MAX_COST) + (distance * FUEL_PRICE_PER_KM)
     return distance * FUEL_PRICE_PER_KM
@@ -34,7 +34,7 @@ def is_precedence_constraint() -> bool:
 def get_random_node_preference(graph_size: int, precedences: dict[int, int], current_node: int) -> int:
     """Get a random node that is not already a key in the precedences dict, and does not have current_node as a value in the precedences dict (to avoid cycles). Fallback to -1 if no valid node found after 1000 attempts."""
     for _ in range(100):
-        node = np.random.randint(0, graph_size)
+        node: int = int(np.random.randint(0, graph_size))
         # reject if already a key, or if inverse exists: {node: current_node} would conflict with {current_node: node}
         if node not in precedences and node != current_node:
             return node
@@ -47,33 +47,33 @@ def generate_graph(n: int) -> nx.Graph:
     precedences: dict[int, int] = {} # first key is the node, second key is the precedence node
     for node in graph.nodes():
         if is_precedence_constraint():
-            precedence_node = get_random_node_preference(n, precedences, node)
+            precedence_node: int = get_random_node_preference(n, precedences, node)
             if precedence_node != -1:
                 precedences[node] = precedence_node
-                graph.nodes[node]['precedence'] = precedence_node
+                graph.nodes[node]["precedence"] = precedence_node
             else:
-                graph.nodes[node]['precedence'] = None
+                graph.nodes[node]["precedence"] = None
         else:
-            graph.nodes[node]['precedence'] = None
+            graph.nodes[node]["precedence"] = None
 
-    for (u, v) in graph.edges():
-        is_forbidden :bool = is_forbidden_vertex()
-        distance = np.random.randint(1, 100)
-        weight = -1 if is_forbidden else compute_weight(distance)
+    for u, v in graph.edges():
+        is_forbidden: bool = is_forbidden_vertex()
+        distance: int = int(np.random.randint(1, 100))
+        weight: float = -1 if is_forbidden else compute_weight(distance)
 
-        graph.edges[u, v]['weight'] = weight
+        graph.edges[u, v]["weight"] = weight
     return graph
 
 def display_graph(graph: nx.Graph) -> None:
     """Display the graph using Matplotlib, with different colors for normal edges, forbidden edges, and precedence constraints."""
-    precedences_edges = [(u, precedence) for u, precedence in graph.nodes(data='precedence') if precedence is not None]
-    normal = []
-    forbidden = []
+    precedences_edges: list[tuple[int, int]] = [(u, precedence) for u, precedence in graph.nodes(data='precedence') if precedence is not None]
+    normal: list[tuple[int, int]] = []
+    forbidden: list[tuple[int, int]] = []
 
-    for (u, v) in graph.edges():
-        forbidden.append((u, v)) if (graph.edges[u, v]['weight'] == -1) else normal.append((u, v))
+    for u, v in graph.edges():
+        forbidden.append((u, v)) if (graph.edges[u, v]["weight"] == -1) else normal.append((u, v))
 
-    edge_labels = {
+    edge_labels: dict[tuple[int, int], str] = {
         (u, v): f"{graph.edges[u, v]['weight']:.2f}"
         for (u, v) in normal
     }
@@ -92,22 +92,21 @@ def display_graph(graph: nx.Graph) -> None:
 
 def display_path(graph: nx.Graph, path: list[int]) -> None:
     """Display the graph and overlay a path through the given node sequence."""
-    precedences_edges = [(u, precedence) for u, precedence in graph.nodes(data='precedence') if precedence is not None]
-    normal = []
-    forbidden = []
+    precedences_edges: list[tuple[int, int]] = [(u, precedence) for u, precedence in graph.nodes(data='precedence') if precedence is not None]
+    normal: list[tuple[int, int]] = []
+    forbidden: list[tuple[int, int]] = []
 
     for (u, v) in graph.edges():
-        forbidden.append((u, v)) if (graph.edges[u, v]['weight'] == -1) else normal.append((u, v))
+        forbidden.append((u, v)) if (graph.edges[u, v]["weight"] == -1) else normal.append((u, v))
 
-    path_edges = [
+    path_edges: list[tuple[int, int]] = [
         (path[i], path[i + 1])
         for i in range(len(path) - 1)
-        if graph.has_edge(path[i], path[i + 1]) and graph.edges[path[i], path[i + 1]]['weight'] != -1
+        if graph.has_edge(path[i], path[i + 1]) and graph.edges[path[i], path[i + 1]]["weight"] != -1
     ]
 
-    edge_labels = {
-        (u, v): f"{graph.edges[u, v]['weight']:.2f}"
-        for (u, v) in normal
+    edge_labels: dict[tuple[int, int], str] = {
+        (u, v): f"{graph.edges[u, v]['weight']:.2f}" for (u, v) in normal
     }
 
     plt.figure(figsize=(10, 10))
@@ -117,8 +116,8 @@ def display_path(graph: nx.Graph, path: list[int]) -> None:
     nx.draw_networkx_labels(graph, pos)
     nx.draw_networkx_edges(graph, pos, edgelist=normal, edge_color="b", alpha=0.5)
     nx.draw_networkx_edges(graph, pos, edgelist=forbidden, edge_color="r", alpha=0.5, style="dashed", width=1.5)
-    nx.draw_networkx_edges(graph, pos, edgelist=precedences_edges, edge_color="g", alpha=1, connectionstyle="arc3,rad=0.3", arrows=True, arrowstyle='->', width=2)
-    nx.draw_networkx_edges(graph, pos, edgelist=path_edges, edge_color="magenta", alpha=1, connectionstyle="arc3,rad=0.2", arrows=True, arrowstyle='->', width=2)
+    nx.draw_networkx_edges(graph, pos, edgelist=precedences_edges, edge_color="g", alpha=1, connectionstyle="arc3,rad=0.3", arrows=True, arrowstyle="->", width=2)
+    nx.draw_networkx_edges(graph, pos, edgelist=path_edges, edge_color="magenta", alpha=1, connectionstyle="arc3,rad=0.2", arrows=True, arrowstyle="->", width=2)
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=7)
 
     plt.axis("off")

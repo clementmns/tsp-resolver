@@ -1,33 +1,28 @@
 import math
 import time
 import numpy as np
-import networkx as nx
 
+from ..helper import *
 
 def _tour_cost(graph: nx.Graph, tour: list[int]) -> float:
-    total = 0.0
+    total: float = 0.0
     for u, v in zip(tour, tour[1:]):
-        weight = graph.edges[u, v]['weight']
+        weight: float = graph.edges[u, v]["weight"]
         if weight == -1:
-            return float('inf')
+            return float("inf")
         total += weight
     return total
 
 
 def _is_feasible(graph: nx.Graph, tour: list[int]) -> bool:
-    # Check forbidden edges
-    for u, v in zip(tour, tour[1:]):
-        if graph.edges[u, v]['weight'] == -1:
-            return False
+    if len(tour) < 2 or tour[0] != tour[-1]:
+        return False
 
-    # Check precedence constraints
-    position = {node: idx for idx, node in enumerate(tour[:-1])}
-    for node in tour[:-1]:
-        predecessor = graph.nodes[node].get('precedence')
-        if predecessor is not None and predecessor in position:
-            if position[predecessor] > position[node]:
-                return False
-    return True
+    open_tour: list[int] = tour[:-1]
+    if len(set(open_tour)) != len(open_tour):
+        return False
+
+    return is_tour_feasible(graph, open_tour)
 
 
 def _two_opt_swap(tour: list[int], i: int, j: int) -> list[int]:
@@ -35,23 +30,17 @@ def _two_opt_swap(tour: list[int], i: int, j: int) -> list[int]:
 
 
 def _initial_tour(graph: nx.Graph, rng: np.random.Generator) -> list[int]:
-    n = graph.number_of_nodes()
-    visited = {0}
-    tour = [0]
+    n: int = graph.number_of_nodes()
+    visited: set[int] = {0}
+    tour: list[int] = [0]
 
     # Greedy nearest neighbor from node 0
     while len(tour) < n:
-        current = tour[-1]
-        candidates = [
-            node for node in graph.nodes()
-            if node not in visited
-            and graph.edges[current, node]['weight'] != -1
-            and (graph.nodes[node].get('precedence') is None
-                 or graph.nodes[node]['precedence'] in visited)
-        ]
+        current: int = tour[-1]
+        candidates: list[int] = valid_next_nodes(graph, current, visited)
         if not candidates:
             break
-        next_node = min(candidates, key=lambda v: graph.edges[current, v]['weight'])
+        next_node = min(candidates, key=lambda v: graph.edges[current, v]["weight"])
         tour.append(next_node)
         visited.add(next_node)
 
@@ -62,9 +51,9 @@ def _initial_tour(graph: nx.Graph, rng: np.random.Generator) -> list[int]:
 
     # Fallback: random shuffles
     for _ in range(50):
-        order = list(range(1, n))
+        order: list[int] = list(range(1, n))
         rng.shuffle(order)
-        candidate = [0] + order + [0]
+        candidate: list[int] = [0] + order + [0]
         if _is_feasible(graph, candidate):
             return candidate
 
@@ -73,17 +62,17 @@ def _initial_tour(graph: nx.Graph, rng: np.random.Generator) -> list[int]:
 
 def _initial_temperature(graph: nx.Graph, tour: list[int], rng: np.random.Generator) -> float:
     # Calibrate T0 so that ~80% of degradations are accepted initially
-    n = len(tour)
-    base_cost = _tour_cost(graph, tour)
-    degradations = []
+    n: int = len(tour)
+    base_cost: float = _tour_cost(graph, tour)
+    degradations: list[float] = []
 
     for _ in range(n * 20):
-        i = int(rng.integers(1, n - 2))
-        j = int(rng.integers(i + 1, n - 1))
-        neighbor = _two_opt_swap(tour, i, j)
+        i: int = int(rng.integers(1, n - 2))
+        j: int = int(rng.integers(i + 1, n - 1))
+        neighbor: list[int] = _two_opt_swap(tour, i, j)
         if not _is_feasible(graph, neighbor):
             continue
-        delta = _tour_cost(graph, neighbor) - base_cost
+        delta: float = _tour_cost(graph, neighbor) - base_cost
         if delta > 0:
             degradations.append(delta)
         if len(degradations) >= 100:
@@ -101,17 +90,17 @@ def resolve_by_recuit_simule(
     seed: int | None = None,
     alpha: float = 0.995,
 ) -> tuple[list[int], float]:
-    rng = np.random.default_rng(seed)
-    start = time.perf_counter()
+    rng: np.random.Generator = np.random.default_rng(seed)
+    start: float = time.perf_counter()
 
-    current = _initial_tour(graph, rng)
-    current_cost = _tour_cost(graph, current)
-    best = list(current)
-    best_cost = current_cost
+    current: list[int] = _initial_tour(graph, rng)
+    current_cost: float = _tour_cost(graph, current)
+    best: list[int] = list(current)
+    best_cost: float = current_cost
 
-    T = _initial_temperature(graph, current, rng)
-    n = len(current)
-    iteration = 0
+    t: float = _initial_temperature(graph, current, rng)
+    n: int = len(current)
+    iteration: int = 0
 
     while True:
         if max_time_seconds is not None and (time.perf_counter() - start) >= max_time_seconds:
@@ -120,11 +109,11 @@ def resolve_by_recuit_simule(
             break
 
         # Find a feasible 2-opt neighbor
-        neighbor = None
+        neighbor: list[int] | None = None
         for _ in range(100):
-            i = int(rng.integers(1, n - 2))
-            j = int(rng.integers(i + 1, n - 1))
-            candidate = _two_opt_swap(current, i, j)
+            i: int = int(rng.integers(1, n - 2))
+            j: int = int(rng.integers(i + 1, n - 1))
+            candidate: list[int] = _two_opt_swap(current, i, j)
             if _is_feasible(graph, candidate):
                 neighbor = candidate
                 break
@@ -132,10 +121,10 @@ def resolve_by_recuit_simule(
         if neighbor is None:
             break
 
-        delta = _tour_cost(graph, neighbor) - current_cost
+        delta: float = _tour_cost(graph, neighbor) - current_cost
 
         # Metropolis criterion
-        if delta <= 0 or rng.random() < math.exp(-delta / T):
+        if delta <= 0 or rng.random() < math.exp(-delta / t):
             current = neighbor
             current_cost += delta
             if current_cost < best_cost:
@@ -143,7 +132,7 @@ def resolve_by_recuit_simule(
                 best_cost = current_cost
 
         # Geometric cooling
-        T *= alpha
+        t *= alpha
         iteration += 1
 
     return best, best_cost
@@ -157,21 +146,23 @@ def resolve_by_ms_recuit_simule(
     seed: int | None = None,
     alpha: float = 0.995,
 ) -> tuple[list[int], float]:
-    rng = np.random.default_rng(seed)
-    start = time.perf_counter()
+    rng: np.random.Generator = np.random.default_rng(seed)
+    start: float = time.perf_counter()
     best: list[int] = []
-    best_cost = float('inf')
+    best_cost: float = float("inf")
 
     for _ in range(n_restarts):
         # Check global time budget
         if max_time_seconds is not None:
-            elapsed = time.perf_counter() - start
+            elapsed: float = time.perf_counter() - start
             if elapsed >= max_time_seconds:
                 break
-            remaining = max_time_seconds - elapsed
+            remaining: float | None = max_time_seconds - elapsed
         else:
             remaining = None
 
+        tour: list[int]
+        cost: float
         tour, cost = resolve_by_recuit_simule(
             graph,
             max_iterations=max_iterations_per_restart,
